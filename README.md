@@ -1,26 +1,87 @@
-# Next.js starter kit with Appwrite
+# 🎧 Retro Lo-Fi Radio Player (Next.js + Appwrite)
 
-Kickstart your Next.js development with this ready-to-use starter project integrated with [Appwrite](https://www.appwrite.io)
+A minimal retro-styled live radio web application built with **Next.js + TailwindCSS**, powered by **Appwrite** as the backend.
 
-## 🚀Getting started
+This project combines a nostalgic console-style UI with modern React architecture and uses **Appwrite** to manage and fetch audio metadata (playlist, categories, streaming URLs).
 
-###
-Clone the Project
-Clone this repository to your local machine using Git:
+Music is sourced from:
+- 📡 Internet Archive (Public Domain / Creative Commons)
+- ☁️ External storage (S3 / CDN)
 
-`git clone https://github.com/appwrite/starter-for-nextjs`
+---
 
-## 🛠️ Development guid
-1. **Configure Appwrite**<br/>
-   Navigate to `.env` and update the values to match your Appwrite project credentials.
-2. **Customize as needed**<br/>
-   Modify the starter kit to suit your app's requirements. Adjust UI, features, or backend
-   integrations as per your needs.
-3. **Install dependencies**<br/>
-   Run `npm install` to install all dependencies.
-4. **Run the app**<br/>
-   Start the project by running `npm run dev`.
+## 🚀 Features
 
-## 💡 Additional notes
-- This starter project is designed to streamline your Next.js development with Appwrite.
-- Refer to the [Appwrite documentation](https://appwrite.io/docs) for detailed integration guidance.
+### 🎛 Retro Console UI
+- Old-school audio console inspired layout
+- Minimal aesthetic
+- Smooth Tailwind transitions
+- Fully responsive
+
+### 🌗 Dark / Light Mode
+- Toggle between themes
+- Stored in `localStorage`
+- Auto-applies on reload
+
+### 🎵 Audio Playback
+- HTML5 `<audio>` element
+- Play / Pause toggle
+- Volume Up / Down
+- Mute support
+- Animated level meter (UI simulation)
+
+### 📂 Category System
+Selectable categories:
+- CHILL
+- RETRO
+- LOFI
+- WORK
+
+Categories and playlist data are fetched dynamically from **Appwrite Database**.
+
+---
+
+## 🗄 Backend: Appwrite Integration
+
+This project uses **Appwrite** for:
+
+- Storing audio metadata (title, URL, category)
+- Managing playlists
+- Fetching streaming URLs
+- Future support for user accounts & synced playback
+
+### Example Data Structure (Appwrite Collection)
+
+| Field       | Type   | Description                    |
+|------------|--------|--------------------------------|
+| category   | string | chill / retro / lofi / work   |
+| song_url   | string | MP3 streaming URL              |
+
+The frontend fetches tracks using Appwrite SDK.
+
+---
+
+## 🎼 Music Source
+
+The app supports music from:
+
+### 📡 Internet Archive
+Search example:
+https://archive.org/search?query=lofi+music&and[]=mediatype%3A%22audio%22
+
+You can:
+- Stream directly
+- Download and host locally
+- Store URLs in Appwrite database
+
+⚠ Always verify license before commercial usage.
+
+---
+
+## 🛠 Installation
+
+### 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/radio.git
+cd radio
