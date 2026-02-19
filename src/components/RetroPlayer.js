@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, SONGS_TABLE } from "@/lib/supabase";
+import { PlayIcon, PauseIcon, VolumeDownIcon, VolumeUpIcon, MuteIcon } from "./Icons";
 
 const categories = [
     { value: "chill", label: "CHILL" },
@@ -296,8 +297,12 @@ export default function RetroPlayer() {
                                 className="relative inline-flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-4 text-sm font-extrabold tracking-[0.24em] shadow-[0_6px_0_0_rgba(0,0,0,0.08)] transition hover:bg-zinc-50 active:translate-y-[2px] active:shadow-[0_4px_0_0_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-900/70 dark:shadow-[0_6px_0_0_rgba(0,0,0,0.4)]"
                                 type="button"
                             >
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 font-mono text-base dark:border-zinc-800 dark:bg-zinc-950">
-                                    <span>{isPlaying ? "⏸" : "▶"}</span>
+                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
+                                    {isPlaying ? (
+                                        <PauseIcon className="w-5 h-5 text-zinc-900 dark:text-zinc-100" />
+                                    ) : (
+                                        <PlayIcon className="w-5 h-5 text-zinc-900 dark:text-zinc-100" />
+                                    )}
                                 </span>
                                 <span>{isPlaying ? "PAUSE" : "PLAY"}</span>
 
@@ -313,9 +318,10 @@ export default function RetroPlayer() {
                                     <button
                                         onClick={handleMute}
                                         type="button"
-                                        className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold tracking-wide transition hover:bg-white active:scale-[.99] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+                                        className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold tracking-wide transition hover:bg-white active:scale-[.99] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
                                     >
-                                        {muted ? "UNMUTE" : "MUTE"}
+                                        <MuteIcon className="w-4 h-4 text-zinc-700 dark:text-zinc-200" />
+                                        <span>{muted ? "UNMUTE" : "MUTE"}</span>
                                     </button>
                                 </div>
 
@@ -323,9 +329,9 @@ export default function RetroPlayer() {
                                     <button
                                         onClick={handleVolumeDown}
                                         type="button"
-                                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-xl font-black shadow-[0_5px_0_0_rgba(0,0,0,0.08)] transition hover:bg-white active:translate-y-[2px] active:shadow-[0_3px_0_0_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900 dark:shadow-[0_5px_0_0_rgba(0,0,0,0.4)]"
+                                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 shadow-[0_5px_0_0_rgba(0,0,0,0.08)] transition hover:bg-white active:translate-y-[2px] active:shadow-[0_3px_0_0_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900 dark:shadow-[0_5px_0_0_rgba(0,0,0,0.4)]"
                                     >
-                                        −
+                                        <VolumeDownIcon className="w-5 h-5 text-zinc-700 dark:text-zinc-200" />
                                     </button>
 
                                     <div className="flex-1">
@@ -348,9 +354,9 @@ export default function RetroPlayer() {
                                     <button
                                         onClick={handleVolumeUp}
                                         type="button"
-                                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-xl font-black shadow-[0_5px_0_0_rgba(0,0,0,0.08)] transition hover:bg-white active:translate-y-[2px] active:shadow-[0_3px_0_0_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900 dark:shadow-[0_5px_0_0_rgba(0,0,0,0.4)]"
+                                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 shadow-[0_5px_0_0_rgba(0,0,0,0.08)] transition hover:bg-white active:translate-y-[2px] active:shadow-[0_3px_0_0_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900 dark:shadow-[0_5px_0_0_rgba(0,0,0,0.4)]"
                                     >
-                                        +
+                                        <VolumeUpIcon className="w-5 h-5 text-zinc-700 dark:text-zinc-200" />
                                     </button>
                                 </div>
                             </div>
