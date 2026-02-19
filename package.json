@@ -9,9 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@appwrite.io/pink-icons": "^1.0.0",
+    "@supabase/supabase-js": "^2.97.0",
     "@tailwindcss/postcss": "^4.1.11",
-    "appwrite": "^18.1.1",
     "next": "^15.4.8",
     "postcss": "^8.5.6",
     "react": "^19.1.2",

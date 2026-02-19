@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Query } from "appwrite";
-import { databases, LIVE_STATE_COLLECTION } from "@/lib/appwrite";
+import { supabase, SONGS_TABLE } from "@/lib/supabase";
 
 const categories = [
     { value: "chill", label: "CHILL" },
@@ -86,55 +85,50 @@ export default function RetroPlayer() {
     }, [isPlaying, muted]);
 
     const loadAudioForCategory = async (categoryValue) => {
-        const { database, collection } = LIVE_STATE_COLLECTION;
-
-        if (!database || !collection) {
-            setError("Missing Appwrite configuration.");
+        if (!SONGS_TABLE) {
+            setError("Missing Supabase configuration.");
             return false;
         }
 
         try {
-            const queries = categoryValue
-                ? [Query.equal("category", categoryValue), Query.limit(100)]
-                : [Query.limit(100)];
-            const docs = await databases.listDocuments(database, collection, queries);
-            const list = docs.documents || [];
-            let doc = list.length
-                ? list[Math.floor(Math.random() * list.length)]
-                : null;
+            let query = supabase.from(SONGS_TABLE).select("*");
 
-            if (!doc && process.env.NEXT_PUBLIC_APPWRITE_DOCUMENT_ID) {
-                try {
-                    doc = await databases.getDocument(
-                        database,
-                        collection,
-                        process.env.NEXT_PUBLIC_APPWRITE_DOCUMENT_ID
-                    );
-                } catch (fallbackError) {
-                    doc = null;
-                }
+            if (categoryValue) {
+                query = query.ilike("category", categoryValue);
             }
 
-            if (!doc) {
-                setError(`No track found for ${categoryLabel}.`);
+            const { data, error: fetchError } = await query.limit(100);
+
+            if (fetchError) {
+                setError(`Database error: ${fetchError.message}`);
                 return false;
             }
+
+            const list = data || [];
+
+            if (list.length === 0) {
+                setError(`No songs found for "${categoryValue}". Try a different category.`);
+                return false;
+            }
+
+            const doc = list[Math.floor(Math.random() * list.length)];
 
             const urlPool = Array.isArray(doc.song_urls)
                 ? doc.song_urls
                 : Array.isArray(doc.audio_urls)
-                ? doc.audio_urls
-                : Array.isArray(doc.urls)
-                ? doc.urls
-                : Array.isArray(doc.songs)
-                ? doc.songs
-                : [];
+                    ? doc.audio_urls
+                    : Array.isArray(doc.urls)
+                        ? doc.urls
+                        : Array.isArray(doc.songs)
+                            ? doc.songs
+                            : [];
 
             const url = urlPool.length
                 ? urlPool[Math.floor(Math.random() * urlPool.length)]
                 : doc.song_url || doc.audio_url || doc.url;
+
             if (!url || !audioRef.current) {
-                setError(`No audio URL for ${categoryLabel}.`);
+                setError("No audio URL found in the selected track.");
                 return false;
             }
 
@@ -144,7 +138,7 @@ export default function RetroPlayer() {
             setError("");
             return true;
         } catch (loadError) {
-            setError("Failed to load audio.");
+            setError(`Error: ${loadError.message}`);
             return false;
         }
     };
@@ -377,8 +371,7 @@ export default function RetroPlayer() {
                     </div>
                 </section>
                 <p className="mt-6 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                    {error ||
-                        "Note: Buttons simulate state + volume."}
+                    {error || "Ready to play. Select a category and press play."}
                 </p>
                 <audio
                     ref={audioRef}
