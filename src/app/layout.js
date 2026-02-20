@@ -1,5 +1,5 @@
 import "./app.css";
-
+import { Analytics } from "@vercel/analytics/next"
 export const metadata = {
   title: "Live Radio - Synced Playback",
   description: "Synchronized live radio web application powered by Vercel and Supabase",
@@ -17,6 +17,7 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
       </head>
+      <Analytics />
       <body className="min-h-screen bg-zinc-50 text-zinc-900 antialiased transition-colors duration-200 dark:bg-zinc-950 dark:text-zinc-100">
         {children}
       </body>
