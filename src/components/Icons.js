@@ -32,3 +32,9 @@ export const MuteIcon = ({ className = "w-6 h-6" }) => (
         <line x1="17" y1="9" x2="23" y2="15"></line>
     </svg>
 );
+
+export const NextIcon = ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M5 5v14h2V5H5zm7 0v14l9-7-9-7zm0 0v14l9-7-9-7z" />
+    </svg>
+);
