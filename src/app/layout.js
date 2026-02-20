@@ -8,6 +8,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="h-full">
+      <meta name="theme-color" content="#00000" />
       <head>
         <link rel="icon" type="image/svg+xml" href="/radio.svg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

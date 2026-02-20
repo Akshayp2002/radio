@@ -224,6 +224,7 @@ export default function AudiusPlayer() {
                 audioRef.current.crossOrigin = "anonymous";
                 
                 // Add ended event listener for auto-play next
+                const trackId = track.id; // Capture track ID to avoid closure issues
                 audioRef.current.onended = () => {
                     console.log("Track ended, playing next...");
                     playNextTrack();
@@ -231,15 +232,29 @@ export default function AudiusPlayer() {
                 
                 audioRef.current.load();
                 
-                // Wait a moment for load to start
-                setTimeout(() => {
-                    if (audioRef.current && currentTrack?.id === track.id) {
+                // Wait for metadata to load before playing
+                const playWhenReady = () => {
+                    if (audioRef.current && audioRef.current.readyState >= 2) {
                         audioRef.current.play().catch(err => {
                             console.log("Play error", err);
                             retryPlayback(track);
                         });
+                        audioRef.current.removeEventListener("canplay", playWhenReady);
                     }
-                }, 500);
+                };
+                
+                // Use canplay event instead of setTimeout
+                audioRef.current.addEventListener("canplay", playWhenReady);
+                
+                // Fallback timeout after 3 seconds
+                setTimeout(() => {
+                    if (audioRef.current && audioRef.current.paused) {
+                        audioRef.current.play().catch(err => {
+                            console.log("Fallback play error", err);
+                            retryPlayback(track);
+                        });
+                    }
+                }, 3000);
                 
                 setIsPlaying(true);
                 setError("");
@@ -388,6 +403,20 @@ export default function AudiusPlayer() {
                     -ms-overflow-style: none;
                     scrollbar-width: none;
                 }
+                @keyframes shimmer {
+                    0% { background-position: -1000px 0; }
+                    100% { background-position: 1000px 0; }
+                }
+                .loading-bar {
+                    background: linear-gradient(
+                        90deg,
+                        rgb(168, 85, 247) 0%,
+                        rgb(196, 181, 253) 50%,
+                        rgb(168, 85, 247) 100%
+                    );
+                    background-size: 1000px 100%;
+                    animation: shimmer 2s infinite;
+                }
             `}</style>
             <main className="mx-auto w-full max-w-2xl px-4 py-10">
                 <div className="flex items-center justify-between mb-6">
@@ -529,8 +558,10 @@ export default function AudiusPlayer() {
                                             <div className="text-xs text-zinc-500 dark:text-zinc-500">{formatTime(currentTime)}</div>
                                             <div className="h-2 flex-1 overflow-hidden rounded border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
                                                 <div
-                                                    className="h-full bg-purple-500 transition-all duration-300"
-                                                    style={{ width: `${meterWidth}%`, opacity: muted ? 0.45 : 1 }}
+                                                    className={`h-full transition-all duration-300 ${
+                                                        isLoading ? "loading-bar" : "bg-purple-500"
+                                                    }`}
+                                                    style={{ width: isLoading ? "100%" : `${meterWidth}%`, opacity: muted ? 0.45 : 1 }}
                                                 />
                                             </div>
                                             <div className="text-xs text-zinc-500 dark:text-zinc-500">{formatTime(duration)}</div>
