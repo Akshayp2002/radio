@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase, SONGS_TABLE } from "@/lib/supabase";
+import { supabase, SONGS_TABLE, LISTENING_TABLE, startListeningSession, endListeningSession, subscribeToListenerCount } from "@/lib/supabase";
 import { PlayIcon, PauseIcon, VolumeDownIcon, VolumeUpIcon, MuteIcon } from "./Icons";
 
 const categories = [
@@ -18,6 +18,9 @@ function clamp(value, min, max) {
 export default function RetroPlayer() {
     const audioRef = useRef(null);
     const loadedCategoryRef = useRef(null);
+    const retryCountRef = useRef(0);
+    const retryTimeoutRef = useRef(null);
+    const maxRetries = 5;
 
     const [isDark, setIsDark] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -27,6 +30,9 @@ export default function RetroPlayer() {
     const [muted, setMuted] = useState(false);
     const [meterWidth, setMeterWidth] = useState(0);
     const [error, setError] = useState("");
+    const [listenerCount, setListenerCount] = useState(0);
+    const [retryStatus, setRetryStatus] = useState("");
+    const sessionIdRef = useRef(null);
 
     const effectiveVolume = muted ? 0 : volume;
 
@@ -59,6 +65,33 @@ export default function RetroPlayer() {
 
         root.classList.add("dark");
         setIsDark(true);
+    }, []);
+
+    useEffect(() => {
+        // Initialize session ID
+        if (!sessionIdRef.current) {
+            sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+
+        // Subscribe to real-time listener updates
+        const channel = subscribeToListenerCount(() => {
+            supabase
+                .from(LISTENING_TABLE)
+                .select("id", { count: "exact" })
+                .then(({ count }) => setListenerCount(count || 0));
+        });
+
+        // Fetch initial count
+        supabase
+            .from(LISTENING_TABLE)
+            .select("id", { count: "exact" })
+            .then(({ count }) => setListenerCount(count || 0));
+
+        return () => {
+            if (channel) {
+                supabase.removeChannel(channel);
+            }
+        };
     }, []);
 
     useEffect(() => {
@@ -150,12 +183,19 @@ export default function RetroPlayer() {
         if (isPlaying) {
             audioRef.current.pause();
             setIsPlaying(false);
+            if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+            retryCountRef.current = 0;
+            setRetryStatus("");
             return;
         }
 
         setIsLoading(true);
+        retryCountRef.current = 0;
+        setRetryStatus("");
+        
         const needsLoad = loadedCategoryRef.current !== category || !audioRef.current.src;
         const canPlay = needsLoad ? await loadAudioForCategory(category) : true;
+        
         if (!canPlay) {
             setIsLoading(false);
             return;
@@ -164,9 +204,10 @@ export default function RetroPlayer() {
         try {
             await audioRef.current.play();
             setIsPlaying(true);
+            setError("");
         } catch (playError) {
-            setError("Unable to start playback.");
-            setIsPlaying(false);
+            retryCountRef.current = 0;
+            await retryPlayback(category);
         } finally {
             setIsLoading(false);
         }
@@ -184,19 +225,62 @@ export default function RetroPlayer() {
 
     const handleMute = () => setMuted((current) => !current);
 
+    const retryPlayback = async (categoryValue) => {
+        if (retryCountRef.current >= maxRetries) {
+            setError(`Failed to load audio after ${maxRetries} attempts. Try a different category.`);
+            setRetryStatus("");
+            setIsLoading(false);
+            return false;
+        }
+
+        const delayMs = Math.pow(2, retryCountRef.current) * 1000;
+        retryCountRef.current += 1;
+        setRetryStatus(`Retrying... (${retryCountRef.current}/${maxRetries})`);
+
+        return new Promise((resolve) => {
+            retryTimeoutRef.current = setTimeout(async () => {
+                try {
+                    const success = await loadAudioForCategory(categoryValue);
+                    if (success && audioRef.current) {
+                        await audioRef.current.play();
+                        setIsPlaying(true);
+                        setRetryStatus("");
+                        setError("");
+                        resolve(true);
+                    } else {
+                        resolve(await retryPlayback(categoryValue));
+                    }
+                } catch (err) {
+                    resolve(await retryPlayback(categoryValue));
+                }
+            }, delayMs);
+        });
+    };
+
+    useEffect(() => {
+        if (isPlaying) {
+            startListeningSession(sessionIdRef.current);
+        } else {
+            endListeningSession(sessionIdRef.current);
+        }
+    }, [isPlaying]);
+
     useEffect(() => {
         if (!isPlaying || !audioRef.current) return;
 
         const swapTrack = async () => {
             setIsLoading(true);
+            retryCountRef.current = 0;
+            setRetryStatus("");
+            
             const canPlay = await loadAudioForCategory(category);
             if (canPlay) {
                 try {
                     await audioRef.current.play();
                     setIsPlaying(true);
+                    setError("");
                 } catch (playError) {
-                    setError("Unable to start playback.");
-                    setIsPlaying(false);
+                    await retryPlayback(category);
                 }
             }
             setIsLoading(false);
@@ -205,13 +289,57 @@ export default function RetroPlayer() {
         swapTrack();
     }, [category, isPlaying]);
 
+    useEffect(() => {
+        if (!audioRef.current) return;
+
+        const handleAudioError = async () => {
+            const errorCode = audioRef.current?.error?.code;
+            const errorMessage = [
+                "Error loading audio",
+                "Audio loading aborted",
+                "Network error loading audio",
+                "Unsupported audio format",
+                "Audio decoding failed"
+            ][errorCode - 1] || "Unknown audio error";
+
+            if (isPlaying && retryCountRef.current < maxRetries) {
+                await retryPlayback(category);
+            } else {
+                setError(errorMessage);
+                setIsPlaying(false);
+            }
+        };
+
+        const handleAudioEnded = () => {
+            setIsPlaying(false);
+            retryCountRef.current = 0;
+            setRetryStatus("");
+        };
+
+        audioRef.current.addEventListener("error", handleAudioError);
+        audioRef.current.addEventListener("ended", handleAudioEnded);
+
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.removeEventListener("error", handleAudioError);
+                audioRef.current.removeEventListener("ended", handleAudioEnded);
+            }
+        };
+    }, [category, isPlaying]);
+
+    useEffect(() => {
+        return () => {
+            if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+        };
+    }, []);
+
     return (
         <div className="min-h-screen bg-zinc-50 text-zinc-900 antialiased transition-colors duration-200 dark:bg-zinc-950 dark:text-zinc-100 flex items-center justify-center">
             <main className="mx-auto w-full max-w-xl px-4 py-10">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
                         <div className="inline-flex items-center gap-2">
-                            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,.25)] dark:shadow-[0_0_0_2px_rgba(16,185,129,.2)]" />
+                            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_0_2px_rgba(16,185,129,.25)] dark:shadow-[0_0_0_2px_rgba(16,185,129,.2)]" />
                             <h1 className="text-sm font-semibold tracking-[0.22em] uppercase">
                                 Retro Player
                             </h1>
@@ -247,7 +375,7 @@ export default function RetroPlayer() {
 
                     <div className="p-5">
                         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4 shadow-inner dark:border-zinc-800 dark:bg-zinc-950">
-                            <div className="flex items-start justify-between gap-4">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                                 <div className="space-y-2">
                                     <div className="text-[11px] font-semibold tracking-[0.28em] uppercase text-zinc-500 dark:text-zinc-400">
                                         Status
@@ -268,6 +396,11 @@ export default function RetroPlayer() {
                                         <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                                             LVL
                                         </span>
+                                    </div>
+
+                                    <div className="font-mono text-sm leading-5">
+                                        <span className="text-zinc-700 dark:text-zinc-200">LISTENERS:</span>
+                                        <span className="ml-2 text-emerald-600 dark:text-emerald-400">{listenerCount}</span>
                                     </div>
                                 </div>
 
@@ -306,7 +439,7 @@ export default function RetroPlayer() {
                                 </span>
                                 <span>{isPlaying ? "PAUSE" : "PLAY"}</span>
 
-                                <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-emerald-500 opacity-70" />
+                                <span className={`absolute right-4 top-4 h-2 w-2 rounded-full ${isPlaying ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'} opacity-70`} />
                             </button>
 
                             <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_6px_0_0_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-[0_6px_0_0_rgba(0,0,0,0.4)]">
@@ -377,13 +510,21 @@ export default function RetroPlayer() {
                     </div>
                 </section>
                 <p className="mt-6 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                    {error || "Ready to play. Select a category and press play."}
+                    {retryStatus || error || "Ready to play. Select a category and press play."}
                 </p>
                 <audio
                     ref={audioRef}
-                    onPlay={() => setIsPlaying(true)}
+                    onPlay={() => {
+                        setIsPlaying(true);
+                        retryCountRef.current = 0;
+                        setRetryStatus("");
+                    }}
                     onPause={() => setIsPlaying(false)}
-                    onEnded={() => setIsPlaying(false)}
+                    onEnded={() => {
+                        setIsPlaying(false);
+                        retryCountRef.current = 0;
+                        setRetryStatus("");
+                    }}
                     crossOrigin="anonymous"
                     style={{ display: "none" }}
                 />
