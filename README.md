@@ -1,8 +1,8 @@
-# 🎧 Retro Lo-Fi Radio Player (Next.js + Appwrite)
+# 🎧 Retro Lo-Fi Radio Player (Next.js + Supabase)
 
-A minimal retro-styled live radio web application built with **Next.js + TailwindCSS**, powered by **Appwrite** as the backend.
+A minimal retro-styled live radio web application built with **Next.js + TailwindCSS**, powered by **Supabase** as the backend.
 
-This project combines a nostalgic console-style UI with modern React architecture and uses **Appwrite** to manage and fetch audio metadata (playlist, categories, streaming URLs).
+This project combines a nostalgic console-style UI with modern React architecture and uses **Supabase** to manage and fetch audio metadata (playlist, categories, streaming URLs).
 
 Music is sourced from:
 - 📡 Internet Archive (Public Domain / Creative Commons)
@@ -37,27 +37,32 @@ Selectable categories:
 - LOFI
 - WORK
 
-Categories and playlist data are fetched dynamically from **Appwrite Database**.
+Categories and playlist data are fetched dynamically from **Supabase (Postgres)**.
 
 ---
 
-## 🗄 Backend: Appwrite Integration
+## 🗄 Backend: Supabase Integration
 
-This project uses **Appwrite** for:
+This project uses **Supabase** for:
 
-- Storing audio metadata (title, URL, category)
+- Storing audio metadata (URL, category)
 - Managing playlists
 - Fetching streaming URLs
-- Future support for user accounts & synced playback
+- Future support for authentication, favorites, and realtime sync
 
-### Example Data Structure (Appwrite Collection)
+### Example Data Structure (Supabase Table)
 
-| Field       | Type   | Description                    |
+**Table:** `tracks`
+
+| Column     | Type   | Description                    |
 |------------|--------|--------------------------------|
-| category   | string | chill / retro / lofi / work   |
-| song_url   | string | MP3 streaming URL              |
+| id         | uuid   | Primary key                    |
+| category   | text   | chill / retro / lofi / work    |
+| song_url   | text   | MP3 streaming URL              |
+| is_active  | bool   | Optional: enable/disable track |
+| created_at | timestamptz | Auto timestamp            |
 
-The frontend fetches tracks using Appwrite SDK.
+The frontend fetches tracks using the Supabase JS SDK.
 
 ---
 
@@ -72,7 +77,7 @@ https://archive.org/search?query=lofi+music&and[]=mediatype%3A%22audio%22
 You can:
 - Stream directly
 - Download and host locally
-- Store URLs in Appwrite database
+- Store URLs in Supabase database
 
 ⚠ Always verify license before commercial usage.
 
